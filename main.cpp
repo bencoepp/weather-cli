@@ -80,14 +80,19 @@ void queryCommand(const std::vector<std::string>& options) {
 }
 
 int main(int argc, char* argv[]) {
-    std::string command = argv[1];
-    std::vector<std::string> options;
-
     std::map<std::string, Command> commands = {
         {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)"}}},
         {"query", {"Allows the user to query the weather data", {}, {}}},
         {"help", {"Displays the help information", {}, {}}}
     };
+
+    if (argc < 2) {
+        helpCommand(commands);
+        return 0;
+    }
+
+    std::string command = argv[1];
+    std::vector<std::string> options;
 
     for (int i = 2; i < argc; ++i) {
         options.emplace_back(argv[i]);
@@ -99,8 +104,6 @@ int main(int argc, char* argv[]) {
         loadCommand(options);
     } else if (command == "query") {
         queryCommand(options);
-    }else {
-        helpCommand(commands);
     }
 
     return 0;
