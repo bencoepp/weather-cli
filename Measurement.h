@@ -8,10 +8,10 @@ class Measurement {
 public:
     std::string id;
     std::string station;
-    std::time_t date;
+    std::string date;
     std::string reportType;
     std::string qualityControlFlag;
-    double wind;
+    std::string wind;
     double cloudCeiling;
     double visibilityDistance;
     double temperature;

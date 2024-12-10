@@ -1,5 +1,4 @@
 ﻿#include "Station.h"
-#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -8,12 +7,21 @@ Station Station::fromCsv(std::string line) {
     Station station = {};
 
     std::vector<std::string> tokens;
-    std::stringstream ss(line);
     std::string token;
+    bool inQuotes = false;
 
-    while (std::getline(ss, token, ',')) {
-        token.erase(std::ranges::remove(token, '"').begin(), token.end());
-        tokens.push_back(token);
+    for (char c : line) {
+        if (c == '"') {
+            // Toggle the inQuotes flag
+            inQuotes = !inQuotes;
+        } else if (c == ',' && !inQuotes) {
+            // Split at comma if not inside quotes
+            tokens.push_back(token);
+            token.clear();
+        } else {
+            // Append character to the current token
+            token += c;
+        }
     }
 
     try {
