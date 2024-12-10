@@ -5,7 +5,33 @@
 #include <regex>
 #include <filesystem>
 
-void helpCommand(const std::vector<std::string>& options){}
+struct Command {
+    std::string description;
+    std::vector<std::string> arguments;
+    std::vector<std::string> options;
+};
+
+void helpCommand(const std::map<std::string, Command>& commands) {
+    std::cout << "Available Commands:\n\n";
+
+    for (const auto& [command, details] : commands) {
+        std::cout << std::setw(15) << std::left << command
+                  << "- " << details.description << "\n";
+        if (!details.arguments.empty()) {
+            std::cout << "  Arguments:\n";
+            for (const auto& arg : details.arguments) {
+                std::cout << "    - " << arg << "\n";
+            }
+        }
+        if (!details.options.empty()) {
+            std::cout << "  Options:\n";
+            for (const auto& opt : details.options) {
+                std::cout << "    - " << opt << "\n";
+            }
+        }
+        std::cout << "\n";
+    }
+}
 
 void loadCommand(const std::vector<std::string>& options) {
     bool drop = false;
@@ -53,24 +79,28 @@ void queryCommand(const std::vector<std::string>& options) {
 
 }
 
-//weather [command] [options -v --verbose] [argument]
-
 int main(int argc, char* argv[]) {
     std::string command = argv[1];
     std::vector<std::string> options;
+
+    std::map<std::string, Command> commands = {
+        {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)"}}},
+        {"query", {"Allows the user to query the weather data", {}, {}}},
+        {"help", {"Displays the help information", {}, {}}}
+    };
 
     for (int i = 2; i < argc; ++i) {
         options.emplace_back(argv[i]);
     }
 
     if (command == "help") {
-        helpCommand(options);
+        helpCommand(commands);
     } else if (command == "load") {
         loadCommand(options);
     } else if (command == "query") {
         queryCommand(options);
     }else {
-        helpCommand(options);
+        helpCommand(commands);
     }
 
     return 0;
