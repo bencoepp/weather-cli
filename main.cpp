@@ -107,6 +107,7 @@ void loadCommand(const std::vector<std::string>& options) {
                     count++;
                 }
             }
+            auto t1 = std::chrono::high_resolution_clock::now();
 
             auto bar = barkeep::ProgressBar(&work, {
               .total = static_cast<int>(files.size()),
@@ -151,6 +152,10 @@ void loadCommand(const std::vector<std::string>& options) {
                 std::cerr << "Error: " << e.what() << std::endl;
             }
             bar->done();
+
+            auto t2 = std::chrono::high_resolution_clock::now();
+
+            std::cout << "Loaded " << measurements.size() << " measurements in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms" << std::endl;
         }
     }
 }
