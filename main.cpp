@@ -5,6 +5,9 @@
 #include <regex>
 #include <filesystem>
 
+#include "Measurement.h"
+#include "Station.h"
+
 struct Command {
     std::string description;
     std::vector<std::string> arguments;
@@ -39,6 +42,7 @@ void loadCommand(const std::vector<std::string>& options) {
     bool batch = false;
     bool clean = false;
     bool garbage = false;
+    int limit = 0;
     std::string path;
 
     for (size_t i = 0; i < options.size(); ++i) {
@@ -48,6 +52,14 @@ void loadCommand(const std::vector<std::string>& options) {
             async = true;
         } else if (options[i] == "--batch") {
             batch = true;
+        } else if (options[i] == "--limit") {
+            if (i + 1 < options.size()) {
+                limit = std::stoi(options[i + 1]);
+                ++i;
+            } else {
+                std::cerr << "Error: --limit option requires a value." << std::endl;
+                return;
+            }
         } else if (options[i] == "--clean") {
             clean = true;
         } else if (options[i] == "--garbage") {
@@ -81,10 +93,36 @@ void loadCommand(const std::vector<std::string>& options) {
             std::cout << "Loading data in batches..." << std::endl;
         }else {
             std::cout << "Loading data synchronously..." << std::endl;
-            //load list of .csv files in directory
-            //for schleife
-            //jede datei lesen line by line
+            int amount = 0;
+            try {
+                for (const auto& entry : std::filesystem::directory_iterator(path)) {
+                    if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+                        if (amount >= limit) {
+                            break;
+                        }
+                        std::ifstream file(entry.path().string());
+                        if (!file.is_open()) {
+                            std::cerr << "Could not open file: " << entry.path().string() << std::endl;
+                            continue;
+                        }
 
+                        std::string line;
+                        while (std::getline(file, line)) {
+                            amount++;
+                            Measurement measurement = Measurement::fromCsv(line);
+                            Station station = Station::fromCsv(line);
+                        }
+
+                        file.close();
+                    }
+                }
+            } catch (const std::filesystem::filesystem_error& e) {
+                std::cerr << "Filesystem error: " << e.what() << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
+
+            std::cout << "Loaded " << amount << " measurements." << std::endl;
         }
     }
 }

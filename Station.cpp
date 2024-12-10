@@ -3,3 +3,11 @@
 //
 
 #include "Station.h"
+
+Station Station::fromCsv(std::string line) {
+    Station station = {};
+
+    //auslesen der daten
+
+    return station;
+}

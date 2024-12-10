@@ -15,6 +15,8 @@ public:
     double latitude;
     double elevation;
     std::string callSign;
+
+    static Station fromCsv(std::string line);
 };
 
 

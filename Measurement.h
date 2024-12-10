@@ -53,6 +53,8 @@ public:
     std::vector<std::string> errorsOrMissingDataIndicators;
     std::string remarksOrAdditionalNotes;
     std::string equipmentDiagnosticsMetadata;
+
+    static Measurement fromCsv(std::string line);
 };
 
 
