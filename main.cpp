@@ -95,9 +95,11 @@ void loadCommand(const std::vector<std::string>& options) {
             std::cout << "Loading data synchronously..." << std::endl;
             int amount = 0;
             try {
+                int files = 0;
                 for (const auto& entry : std::filesystem::directory_iterator(path)) {
                     if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-                        if (amount >= limit) {
+                        files++;
+                        if (files >= limit) {
                             break;
                         }
                         std::ifstream file(entry.path().string());
