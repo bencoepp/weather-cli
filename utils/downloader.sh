@@ -1,49 +1,37 @@
-﻿#!/bin/bash
+﻿#!/usr/bin/env bash
+set -euo pipefail
 
 BASE_URL="https://www.ncei.noaa.gov/data/global-hourly/access/"
-TARGET_DIR="../data"
+TARGET_DIR="//bcp-storage/experimental/noaa-global-hourly"
 
-# Initialize a global counter
-count=1
-
+# Create the target directory if it doesn't exist
 mkdir -p "$TARGET_DIR"
 
-download_csv_files() {
-    local url="$1"
-    local local_target_dir="$2"
+count=1
 
-    # If no local target directory is provided, default to the main TARGET_DIR
-    [ -z "$local_target_dir" ] && local_target_dir="$TARGET_DIR"
+# Fetch the main page and extract year directories (like 1901/, 1902/, etc.)
+year_dirs=$(curl -s "$BASE_URL" | grep -Eo 'href="[0-9]{4}/"' | sed 's/href="//; s/"//')
 
-    # Get a list of subdirectories at this level. NOAA directories often represent years.
-    # We'll replicate this structure locally.
-    local directories=($(curl -s "$url" | grep -oP '(?<=href=")[^"]+/' | sort -u))
+# Iterate over each year directory
+for year_dir in $year_dirs; do
+    year_url="${BASE_URL}${year_dir}"
 
-    for dir in "${directories[@]}"; do
-        # Remove the trailing slash from the directory name
-        dir_name="${dir%/}"
+    # For each year directory, fetch listing and extract .csv file links
+    csv_files=$(curl -s "$year_url" | grep -Eo 'href="[^"]+\.csv"' | sed 's/href="//; s/"//')
 
-        # Create a corresponding subdirectory under the local target directory
-        mkdir -p "$local_target_dir/$dir_name"
+    # Download each CSV file directly to TARGET_DIR with new names
+    for csv_file in $csv_files; do
+        csv_url="${year_url}${csv_file}"
 
-        # Recursively download files from this subdirectory
-        download_csv_files "${url}${dir}" "$local_target_dir/$dir_name"
+        # Download directly with a sequential name
+        outfile="$TARGET_DIR/file$count.csv"
+        if curl --fail -s -S "$csv_url" -o "$outfile"; then
+            echo "Downloaded: $csv_url -> $outfile"
+            count=$((count + 1))
+        else
+            echo "Failed to download $csv_url" >&2
+        fi
     done
+done
 
-    # Download CSV files at the current level
-    curl -s "$url" | grep -oP '(?<=href=")[^"]+\.csv' | while read -r file; do
-        echo "Downloading: ${url}${file}"
-
-        # Extract the filename from the URL
-        filename="${file##*/}"
-
-        # Download the file into the appropriate directory, prefixing with a global counter
-        curl -s "${url}${file}" -o "${local_target_dir}/${count}_${filename}"
-
-        # Increment the counter after each file
-        ((count++))
-    done
-}
-
-download_csv_files "$BASE_URL"
-echo "Download completed. The files have been organized by directory (e.g. year) in $TARGET_DIR."
+echo "Downloaded and renamed $((count-1)) CSV files into $TARGET_DIR."

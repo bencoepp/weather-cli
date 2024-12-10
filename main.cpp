@@ -1,7 +1,9 @@
 #include <iostream>
-#include <filesystem>
+#include <fstream>
+#include <string>
 #include <vector>
-
+#include <regex>
+#include <filesystem>
 
 void helpCommand(const std::vector<std::string>& options){}
 
@@ -42,12 +44,16 @@ void loadCommand(const std::vector<std::string>& options) {
         std::cerr << "Error: --path option is required." << std::endl;
     }
 
+
+
     std::cout << "Loading data from " << path << std::endl;
 }
 
 void queryCommand(const std::vector<std::string>& options) {
 
 }
+
+//weather [command] [options -v --verbose] [argument]
 
 int main(int argc, char* argv[]) {
     std::string command = argv[1];
