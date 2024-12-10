@@ -70,9 +70,23 @@ void loadCommand(const std::vector<std::string>& options) {
         std::cerr << "Error: --path option is required." << std::endl;
     }
 
-
-
     std::cout << "Loading data from " << path << std::endl;
+
+    if (async && batch) {
+        std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
+    }else {
+        if (async) {
+            std::cout << "Loading data asynchronously..." << std::endl;
+        } else if (batch) {
+            std::cout << "Loading data in batches..." << std::endl;
+        }else {
+            std::cout << "Loading data synchronously..." << std::endl;
+            //load list of .csv files in directory
+            //for schleife
+            //jede datei lesen line by line
+
+        }
+    }
 }
 
 void queryCommand(const std::vector<std::string>& options) {
