@@ -8,6 +8,8 @@
 #include "Station.h"
 #include <SQLiteCpp/SQLiteCpp.h>
 
+#include "barkeep.h"
+
 struct Command {
     std::string description;
     std::vector<std::string> arguments;
@@ -93,49 +95,60 @@ void loadCommand(const std::vector<std::string>& options) {
         } else if (batch) {
             std::cout << "Loading data in batches..." << std::endl;
         }else {
-            std::cout << "Loading data synchronously..." << std::endl;
             int amount = 0;
             auto t1 = std::chrono::high_resolution_clock::now();
-            try {
-                int files = 0;
-                for (const auto& entry : std::filesystem::directory_iterator(path)) {
-                    if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-                        files++;
-                        if (files >= limit) {
-                            break;
-                        }
-                        std::ifstream file(entry.path().string());
-                        if (!file.is_open()) {
-                            std::cerr << "Could not open file: " << entry.path().string() << std::endl;
-                            continue;
-                        }
-
-                        std::string line;
-                        while (std::getline(file, line)) {
-                            if (line.empty()) {
+            int work{0};
+            auto bar = barkeep::ProgressBar(&work, {
+              .total = 505,
+              .message = "Loading data synchronously...",
+              .speed = 1.,
+              .speed_unit = "measurements/s",
+              .style = barkeep::ProgressBarStyle::Rich,
+            });
+            for (int i = 0; i < 505; i++) {
+                try {
+                    int files = 0;
+                    for (const auto& entry : std::filesystem::directory_iterator(path)) {
+                        if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+                            files++;
+                            if (files >= limit) {
+                                break;
+                            }
+                            std::ifstream file(entry.path().string());
+                            if (!file.is_open()) {
+                                std::cerr << "Could not open file: " << entry.path().string() << std::endl;
                                 continue;
                             }
 
-                            if (line.find("STATION") != std::string::npos) {
-                                continue;
+                            std::string line;
+                            while (std::getline(file, line)) {
+                                if (line.empty()) {
+                                    continue;
+                                }
+
+                                if (line.find("STATION") != std::string::npos) {
+                                    continue;
+                                }
+
+                                amount++;
+                                measurements.push_back(Measurement::fromCsv(line));
+                                Station station = Station::fromCsv(line);
+                                if (!stations.contains(station.id)) {
+                                    stations[station.id] = station;
+                                }
                             }
 
-                            amount++;
-                            measurements.push_back(Measurement::fromCsv(line));
-                            Station station = Station::fromCsv(line);
-                            if (!stations.contains(station.id)) {
-                                stations[station.id] = station;
-                            }
+                            file.close();
+                            work++;
                         }
-
-                        file.close();
                     }
+                } catch (const std::filesystem::filesystem_error& e) {
+                    std::cerr << "Filesystem error: " << e.what() << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error: " << e.what() << std::endl;
                 }
-            } catch (const std::filesystem::filesystem_error& e) {
-                std::cerr << "Filesystem error: " << e.what() << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Error: " << e.what() << std::endl;
             }
+            bar->done();
 
             auto t2 = std::chrono::high_resolution_clock::now();
 
