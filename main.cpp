@@ -6,6 +6,7 @@
 #include <filesystem>
 #include "Measurement.h"
 #include "Station.h"
+#include <SQLiteCpp/SQLiteCpp.h>
 
 struct Command {
     std::string description;
