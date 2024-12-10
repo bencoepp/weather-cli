@@ -96,54 +96,59 @@ void loadCommand(const std::vector<std::string>& options) {
             std::cout << "Loading data in batches..." << std::endl;
         }else {
             int work{0};
+            std::pmr::vector<std::filesystem::directory_entry> files;
+            int count = 0;
+            for (const auto& entry : std::filesystem::directory_iterator(path)) {
+                if (count >= limit) {
+                    break;
+                }
+                if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+                    files.push_back(entry);
+                    count++;
+                }
+            }
+
             auto bar = barkeep::ProgressBar(&work, {
-              .total = 505,
+              .total = static_cast<int>(files.size()),
               .message = "Loading data...",
               .speed = 1.,
               .speed_unit = "measurements/s",
               .style = barkeep::Rich,
             });
-            for (int i = 0; i < 505; i++) {
-                try {
-                    int files = 0;
-                    for (const auto& entry : std::filesystem::directory_iterator(path)) {
-                        if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-                            files++;
-                            if (files >= limit) {
-                                break;
-                            }
-                            std::ifstream file(entry.path().string());
-                            if (!file.is_open()) {
-                                std::cerr << "Could not open file: " << entry.path().string() << std::endl;
+            try {
+                for (const auto& entry : files) {
+                    if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+                        std::ifstream file(entry.path().string());
+                        if (!file.is_open()) {
+                            std::cerr << "Could not open file: " << entry.path().string() << std::endl;
+                            continue;
+                        }
+
+                        std::string line;
+                        while (std::getline(file, line)) {
+                            if (line.empty()) {
                                 continue;
                             }
 
-                            std::string line;
-                            while (std::getline(file, line)) {
-                                if (line.empty()) {
-                                    continue;
-                                }
-
-                                if (line.find("STATION") != std::string::npos) {
-                                    continue;
-                                }
-
-                                measurements.push_back(Measurement::fromCsv(line));
-                                Station station = Station::fromCsv(line);
-                                if (!stations.contains(station.id)) {
-                                    stations[station.id] = station;
-                                }
+                            if (line.find("STATION") != std::string::npos) {
+                                continue;
                             }
 
-                            file.close();
-                            work++;
+                            measurements.push_back(Measurement::fromCsv(line));
+                            Station station = Station::fromCsv(line);
+                            if (!stations.contains(station.id)) {
+                                stations[station.id] = station;
+                            }
                         }
+
+                        file.close();
+                        work++;
                     }
-                } catch (const std::filesystem::filesystem_error& e) {
-                    std::cerr << "Filesystem error: " << e.what() << std::endl;
-                } catch (const std::exception& e) {
-                    std::cerr << "Error: " << e.what() << std::endl;
                 }
+            } catch (const std::filesystem::filesystem_error& e) {
+                std::cerr << "Filesystem error: " << e.what() << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error: " << e.what() << std::endl;
             }
             bar->done();
         }
