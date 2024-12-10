@@ -7,7 +7,7 @@
 #include "Measurement.h"
 #include "Station.h"
 #include <SQLiteCpp/SQLiteCpp.h>
-
+#include <windows.h>
 #include "barkeep.h"
 
 struct Command {
@@ -95,15 +95,13 @@ void loadCommand(const std::vector<std::string>& options) {
         } else if (batch) {
             std::cout << "Loading data in batches..." << std::endl;
         }else {
-            int amount = 0;
-            auto t1 = std::chrono::high_resolution_clock::now();
             int work{0};
             auto bar = barkeep::ProgressBar(&work, {
               .total = 505,
-              .message = "Loading data synchronously...",
+              .message = "Loading data...",
               .speed = 1.,
               .speed_unit = "measurements/s",
-              .style = barkeep::ProgressBarStyle::Rich,
+              .style = barkeep::Rich,
             });
             for (int i = 0; i < 505; i++) {
                 try {
@@ -130,7 +128,6 @@ void loadCommand(const std::vector<std::string>& options) {
                                     continue;
                                 }
 
-                                amount++;
                                 measurements.push_back(Measurement::fromCsv(line));
                                 Station station = Station::fromCsv(line);
                                 if (!stations.contains(station.id)) {
@@ -149,11 +146,6 @@ void loadCommand(const std::vector<std::string>& options) {
                 }
             }
             bar->done();
-
-            auto t2 = std::chrono::high_resolution_clock::now();
-
-            std::cout << "Loaded " << amount << " measurements in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms." << std::endl;
-            std::cout << "Loaded " << amount << " measurements." << std::endl;
         }
     }
 }
@@ -162,7 +154,9 @@ void queryCommand(const std::vector<std::string>& options) {
 
 }
 
-int main(int argc, char* argv[]) {
+int
+main(int argc, char* argv[]) {
+    SetConsoleOutputCP(CP_UTF8);
     std::map<std::string, Command> commands = {
         {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)"}}},
         {"query", {"Allows the user to query the weather data", {}, {}}},
