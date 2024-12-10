@@ -84,7 +84,7 @@ void loadCommand(const std::vector<std::string>& options) {
 
     std::cout << "Loading data from " << path << std::endl;
     std::vector<Measurement> measurements;
-    std::vector<Station> stations;
+    std::map<std::string, Station> stations;
     if (async && batch) {
         std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
     }else {
@@ -95,6 +95,7 @@ void loadCommand(const std::vector<std::string>& options) {
         }else {
             std::cout << "Loading data synchronously..." << std::endl;
             int amount = 0;
+            auto t1 = std::chrono::high_resolution_clock::now();
             try {
                 int files = 0;
                 for (const auto& entry : std::filesystem::directory_iterator(path)) {
@@ -120,9 +121,11 @@ void loadCommand(const std::vector<std::string>& options) {
                             }
 
                             amount++;
-                            Measurement measurement = Measurement::fromCsv(line);
-                            measurements.push_back(measurement  );
+                            measurements.push_back(Measurement::fromCsv(line));
                             Station station = Station::fromCsv(line);
+                            if (!stations.contains(station.id)) {
+                                stations[station.id] = station;
+                            }
                         }
 
                         file.close();
@@ -134,6 +137,9 @@ void loadCommand(const std::vector<std::string>& options) {
                 std::cerr << "Error: " << e.what() << std::endl;
             }
 
+            auto t2 = std::chrono::high_resolution_clock::now();
+
+            std::cout << "Loaded " << amount << " measurements in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms." << std::endl;
             std::cout << "Loaded " << amount << " measurements." << std::endl;
         }
     }
