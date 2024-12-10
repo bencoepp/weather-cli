@@ -1,8 +1,4 @@
-﻿//
-// Created by benco on 09/12/2024.
-//
-
-#ifndef MEASUREMENT_H
+﻿#ifndef MEASUREMENT_H
 #define MEASUREMENT_H
 #include <string>
 #include <ctime>

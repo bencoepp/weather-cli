@@ -1,8 +1,4 @@
-﻿//
-// Created by benco on 09/12/2024.
-//
-
-#ifndef STATION_H
+﻿#ifndef STATION_H
 #define STATION_H
 #include <string>
 
