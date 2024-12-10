@@ -82,7 +82,8 @@ void loadCommand(const std::vector<std::string>& options) {
     }
 
     std::cout << "Loading data from " << path << std::endl;
-
+    std::vector<Measurement> measurements;
+    std::vector<Station> stations;
     if (async && batch) {
         std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
     }else {
@@ -119,6 +120,7 @@ void loadCommand(const std::vector<std::string>& options) {
 
                             amount++;
                             Measurement measurement = Measurement::fromCsv(line);
+                            measurements.push_back(measurement  );
                             Station station = Station::fromCsv(line);
                         }
 
