@@ -4,7 +4,6 @@
 #include <vector>
 #include <regex>
 #include <filesystem>
-
 #include "Measurement.h"
 #include "Station.h"
 
@@ -110,6 +109,14 @@ void loadCommand(const std::vector<std::string>& options) {
 
                         std::string line;
                         while (std::getline(file, line)) {
+                            if (line.empty()) {
+                                continue;
+                            }
+
+                            if (line.find("STATION") != std::string::npos) {
+                                continue;
+                            }
+
                             amount++;
                             Measurement measurement = Measurement::fromCsv(line);
                             Station station = Station::fromCsv(line);
