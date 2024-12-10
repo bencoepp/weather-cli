@@ -1,8 +1,6 @@
 ﻿#include "Measurement.h"
-#include <algorithm>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <vector>
 
 Measurement Measurement::fromCsv(std::string line) {
