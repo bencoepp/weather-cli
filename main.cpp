@@ -12,24 +12,24 @@ struct Command {
 };
 
 void helpCommand(const std::map<std::string, Command>& commands) {
-    std::cout << "Available Commands:\n\n";
+    std::cout << "Available Commands:" << std::endl << std::endl;
 
     for (const auto& [command, details] : commands) {
         std::cout << std::setw(15) << std::left << command
-                  << "- " << details.description << "\n";
+                  << "- " << details.description << std::endl;
         if (!details.arguments.empty()) {
-            std::cout << "  Arguments:\n";
+            std::cout << "  Arguments:" << std::endl;
             for (const auto& arg : details.arguments) {
-                std::cout << "    - " << arg << "\n";
+                std::cout << "    - " << arg << std::endl;
             }
         }
         if (!details.options.empty()) {
-            std::cout << "  Options:\n";
+            std::cout << "  Options:" << std::endl;
             for (const auto& opt : details.options) {
-                std::cout << "    - " << opt << "\n";
+                std::cout << "    - " << opt << std::endl;
             }
         }
-        std::cout << "\n";
+        std::cout << std::endl;
     }
 }
 
