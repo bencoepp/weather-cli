@@ -11,6 +11,7 @@
 #include <SQLiteCpp/SQLiteCpp.h>
 #include <windows.h>
 #include "barkeep.h"
+#include "SQLiteHandler.h"
 
 struct Command {
     std::string description;
@@ -147,6 +148,9 @@ void loadCommand(const std::vector<std::string>& options) {
     std::vector<Measurement> measurements;
     std::map<std::string, Station> stations;
     std::mutex mtx;
+
+    SQLiteHandler db("weather.db");
+    db.init();
 
     int work{0};
     std::vector<std::filesystem::directory_entry> files;

@@ -9,12 +9,12 @@
 
 class SQLiteHandler {
 public:
-    explicit SQLiteHandler(std::string database);
+    explicit SQLiteHandler(const std::string& database);
     void init();
     Measurement getMeasurement(std::string stationId);
     Station getStation(std::string stationId);
     Measurement& insertMeasurement(Measurement& measurement);
-    Station& insertStation(Station& station);
+    Station& insertStation(Station& station) const;
     Measurement& updateMeasurements(Measurement& measurement);
     Station& updateStation(Station& station);
     bool deleteMeasurements(Measurement& measurement);
