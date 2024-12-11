@@ -40,6 +40,13 @@ void helpCommand(const std::map<std::string, Command>& commands) {
     }
 }
 
+int longRunningTask(int seconds) {
+    std::cout << "Task started on thread " << std::this_thread::get_id() << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(seconds));
+    std::cout << "Task completed after " << seconds << " seconds\n";
+    return seconds * 2; // Just returning some result
+}
+
 void loadCommand(const std::vector<std::string>& options) {
     bool drop = false;
     bool async = false;
@@ -119,6 +126,16 @@ void loadCommand(const std::vector<std::string>& options) {
         std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
     }else {
         if (async) {
+            std::cout << "Main thread ID: " << std::this_thread::get_id() << std::endl;
+
+            std::future<int> result = std::async(std::launch::async, longRunningTask, 3);
+
+            std::cout << "Main thread is doing other work...\n";
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::cout << "Main thread finished its work\n";
+
+            int value = result.get();
+            std::cout << "Result from async task: " << value << std::endl;
 
         } else if (batch) {
             auto bar = barkeep::ProgressBar(&work, {
