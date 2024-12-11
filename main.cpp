@@ -40,11 +40,52 @@ void helpCommand(const std::map<std::string, Command>& commands) {
     }
 }
 
-int longRunningTask(int seconds) {
-    std::cout << "Task started on thread " << std::this_thread::get_id() << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(seconds));
-    std::cout << "Task completed after " << seconds << " seconds\n";
-    return seconds * 2; // Just returning some result
+void loadDataAsync(const std::vector<std::filesystem::directory_entry>& batch,
+                  std::vector<Measurement>& measurements,
+                  std::map<std::string, Station>& stations,
+                  std::mutex& mtx,
+                  int& work) {
+    try {
+        for (const auto& entry : batch) {
+            if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+                std::ifstream file(entry.path().string());
+                if (!file.is_open()) {
+                    std::cerr << "Could not open file: " << entry.path().string() << std::endl;
+                    continue;
+                }
+
+                std::string line;
+                while (std::getline(file, line)) {
+                    if (line.empty()) {
+                        continue;
+                    }
+
+                    if (line.find("STATION") != std::string::npos) {
+                        continue;
+                    }
+                    Measurement measurement = Measurement::fromCsv(line);
+                    Station station = Station::fromCsv(line);
+
+                    std::lock_guard<std::mutex> lock(mtx);
+                    measurements.push_back(measurement);
+                    if (!stations.contains(station.id)) {
+                        stations.insert({station.id, station});
+                    }
+                }
+
+                file.close();
+
+                {
+                    std::lock_guard<std::mutex> lock(mtx);
+                    work++;
+                }
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
 }
 
 void loadCommand(const std::vector<std::string>& options) {
@@ -105,9 +146,10 @@ void loadCommand(const std::vector<std::string>& options) {
     std::cout << "Loading data from " << path << std::endl;
     std::vector<Measurement> measurements;
     std::map<std::string, Station> stations;
+    std::mutex mtx;
 
-    std::atomic<size_t> work{0};
-    std::pmr::vector<std::filesystem::directory_entry> files;
+    int work{0};
+    std::vector<std::filesystem::directory_entry> files;
     int count = 0;
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
         if (count >= limit) {
@@ -121,115 +163,54 @@ void loadCommand(const std::vector<std::string>& options) {
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
-
     if (async && batch) {
         std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
     }else {
         if (async) {
-            std::cout << "Main thread ID: " << std::this_thread::get_id() << std::endl;
+            std::vector<std::future<void>> futures;
+            auto bar = barkeep::ProgressBar(&work, {
+                    .total = static_cast<int>(files.size()),
+                    .message = "Loading data async...",
+                    .speed = 1.0,
+                    .speed_unit = "measurements/s",
+                    .style = barkeep::Rich,
+                });
+            for (size_t start = 0; start < files.size(); start += batchSize) {
+                size_t end = std::min(start + batchSize, files.size());
+                std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
 
-            std::future<int> result = std::async(std::launch::async, longRunningTask, 3);
+                futures.push_back(std::async(std::launch::async, loadDataAsync, std::move(batches), std::ref(measurements), std::ref(stations), std::ref(mtx), std::ref(work)));
+            }
 
-            std::cout << "Main thread is doing other work...\n";
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            std::cout << "Main thread finished its work\n";
-
-            int value = result.get();
-            std::cout << "Result from async task: " << value << std::endl;
-
+            for (auto& future : futures) {
+                future.get();
+            }
+            bar->done();
         } else if (batch) {
             auto bar = barkeep::ProgressBar(&work, {
-              .total = files.size(),
+              .total = static_cast<int>(files.size()),
               .message = "Loading data in batches...",
               .speed = 1.,
               .speed_unit = "measurements/s",
               .style = barkeep::Rich,
             });
-            try {
-                for (size_t start = 0; start < count; start += batchSize) {
-                    size_t end = std::min(start + batchSize, files.size());
-                    for (size_t i = start; i < end; ++i) {
-                        const auto& entry = files[i];
+            for (size_t start = 0; start < files.size(); start += batchSize) {
+                size_t end = std::min(start + batchSize, files.size());
+                std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
 
-                        if (work >= files.size()) {
-                            break;
-                        }
-
-                        std::ifstream file(entry.path().string());
-                        if (!file.is_open()) {
-                            std::cerr << "Could not open file: " << entry.path().string() << std::endl;
-                            continue;
-                        }
-
-                        std::string line;
-                        while (std::getline(file, line)) {
-                            if (line.empty() || line.find("STATION") != std::string::npos) {
-                                continue;
-                            }
-
-                            measurements.push_back(Measurement::fromCsv(line));
-                            Station station = Station::fromCsv(line);
-                            if (!stations.contains(station.id)) {
-                                stations[station.id] = station;
-                            }
-                        }
-
-                        file.close();
-                        ++work;
-                    }
-                }
-            } catch (const std::filesystem::filesystem_error& e) {
-                std::cerr << "Filesystem error: " << e.what() << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Error: " << e.what() << std::endl;
+                loadDataAsync(batches, measurements, stations, mtx, work);
             }
             bar->done();
         }else {
             auto bar = barkeep::ProgressBar(&work, {
-              .total = files.size(),
+              .total = static_cast<int>(files.size()),
               .message = "Loading data synchronously...",
               .speed = 1.,
               .speed_unit = "measurements/s",
               .style = barkeep::Rich,
             });
-            try {
-                for (const auto& entry : files) {
-                    if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-                        std::ifstream file(entry.path().string());
-                        if (!file.is_open()) {
-                            std::cerr << "Could not open file: " << entry.path().string() << std::endl;
-                            continue;
-                        }
-
-                        std::string line;
-                        while (std::getline(file, line)) {
-                            if (line.empty()) {
-                                continue;
-                            }
-
-                            if (line.find("STATION") != std::string::npos) {
-                                continue;
-                            }
-
-                            measurements.push_back(Measurement::fromCsv(line));
-                            Station station = Station::fromCsv(line);
-                            if (!stations.contains(station.id)) {
-                                stations[station.id] = station;
-                            }
-                        }
-
-                        file.close();
-                        work++;
-                    }
-                }
-            } catch (const std::filesystem::filesystem_error& e) {
-                std::cerr << "Filesystem error: " << e.what() << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Error: " << e.what() << std::endl;
-            }
+            loadDataAsync(files, measurements, stations, mtx, work);
             bar->done();
-
-
         }
     }
 
@@ -242,8 +223,7 @@ void queryCommand(const std::vector<std::string>& options) {
 
 }
 
-int
-main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     SetConsoleOutputCP(CP_UTF8);
     std::map<std::string, Command> commands = {
         {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)", "-bs (batch-size)"}}},
