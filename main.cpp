@@ -153,7 +153,9 @@ void loadCommand(const std::vector<std::string>& options) {
     db.cleanDatabase();
     db.init();
 
-    int work{0};
+    int workLoading{0};
+    int workStations{0};
+    int workMeasurements{0};
     std::vector<std::filesystem::directory_entry> files;
     int count = 0;
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
@@ -173,7 +175,7 @@ void loadCommand(const std::vector<std::string>& options) {
     }else {
         if (async) {
             std::vector<std::future<void>> futures;
-            auto bar = barkeep::ProgressBar(&work, {
+            auto bar = barkeep::ProgressBar(&workLoading, {
                     .total = static_cast<int>(files.size()),
                     .message = "Loading data async...",
                     .speed = 1.0,
@@ -184,7 +186,7 @@ void loadCommand(const std::vector<std::string>& options) {
                 size_t end = std::min(start + batchSize, files.size());
                 std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
 
-                futures.push_back(std::async(std::launch::async, loadDataAsync, std::move(batches), std::ref(measurements), std::ref(stations), std::ref(mtx), std::ref(work)));
+                futures.push_back(std::async(std::launch::async, loadDataAsync, std::move(batches), std::ref(measurements), std::ref(stations), std::ref(mtx), std::ref(workLoading)));
             }
 
             for (auto& future : futures) {
@@ -192,60 +194,82 @@ void loadCommand(const std::vector<std::string>& options) {
             }
             bar->done();
         } else if (batch) {
-            auto bar = barkeep::ProgressBar(&work, {
-              .total = static_cast<int>(files.size()),
-              .message = "Loading data in batches...",
-              .speed = 1.,
-              .speed_unit = "measurements/s",
-              .style = barkeep::Rich,
-            });
+            auto bars = barkeep::Composite(
+              {barkeep::ProgressBar(&workLoading, {
+                    .total = 100,
+                    .message = "Loading files",
+                    .speed = 0,
+                    .style = barkeep::Rich,
+                    .show = true,
+                }),
+                barkeep::ProgressBar(&workStations, {
+                    .total = 5050,
+                    .message = "Saving Stations",
+                    .speed = 0,
+                    .style = barkeep::Rich,
+                    .show = true,
+                }),
+                barkeep::ProgressBar(&workMeasurements, {
+                    .total = 171700,
+                    .message = "Saving measurements",
+                    .speed = 0,
+                    .style = barkeep::Rich,
+                    .show = true,
+                })},
+              "\n");
             for (size_t start = 0; start < files.size(); start += batchSize) {
                 size_t end = std::min(start + batchSize, files.size());
                 std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
 
-                loadDataAsync(batches, measurements, stations, mtx, work);
+                loadDataAsync(batches, measurements, stations, mtx, workLoading);
             }
-            bar->done();
-        }else {
-            auto barFiles = barkeep::ProgressBar(&work, {
-              .total = static_cast<int>(files.size()),
-              .message = "Loading data synchronously...",
-              .speed = 1.,
-              .speed_unit = "measurements/s",
-              .style = barkeep::Rich,
-            });
-            loadDataAsync(files, measurements, stations, mtx, work);
-
-            barFiles->done();
-
-            int stationWork = {0};
-            auto barStations = barkeep::ProgressBar(&stationWork, {
-              .total = static_cast<int>(stations.size()),
-              .message = "Saving stations...",
-              .speed = 1.,
-              .speed_unit = "entities/s",
-              .style = barkeep::Rich,
-            });
             for (auto& [id, station] : stations) {
                 db.insertStation(station);
-                stationWork++;
+                workStations++;
             }
-            barStations->done();
-
-            int measurementsWork = {0};
-            auto barMeasurements = barkeep::ProgressBar(&measurementsWork, {
-              .total = static_cast<int>(measurements.size()),
-              .message = "Saving measurements...",
-              .speed = 1.,
-              .speed_unit = "entities/s",
-              .style = barkeep::Rich,
-            });
             for (auto& measurement : measurements) {
                 db.insertMeasurement(measurement);
-                measurementsWork++;
+                workMeasurements++;
             }
-            barMeasurements->done();
-
+            bars->done();
+        }else {
+            auto bar = barkeep::ProgressBar(&workLoading, {
+              .total = static_cast<int>(files.size()),
+              .message = "Loading data",
+              .speed = 1.,
+              .speed_unit = "files/s",
+              .style = barkeep::ProgressBarStyle::Rich,
+            });
+            loadDataAsync(files, measurements, stations, mtx, workLoading);
+            bar->done();
+            auto bars = barkeep::Composite(
+              {barkeep::ProgressBar(&workMeasurements, {
+                    .total = static_cast<int>(measurements.size()),
+                    .message = "Saving measurements",
+                    .speed = 1,
+                    .speed_unit = "entities/s",
+                    .style = barkeep::Rich,
+                    .show = false,
+                }),
+                barkeep::ProgressBar(&workStations, {
+                    .total = static_cast<int>(stations.size()),
+                    .message = "Saving stations",
+                    .speed = 1,
+                    .speed_unit = "entities/s",
+                    .style = barkeep::Rich,
+                    .show = false,
+                })},
+              "\n");
+            bars->show();
+            for (auto& measurement : measurements) {
+                db.insertMeasurement(measurement);
+                workMeasurements++;
+            }
+            for (auto& [id, station] : stations) {
+                db.insertStation(station);
+                workStations++;
+            }
+            bars->done();
         }
     }
 
@@ -263,6 +287,7 @@ void queryCommand(const std::vector<std::string>& options) {
 
 int main(int argc, char *argv[]) {
     SetConsoleOutputCP(CP_UTF8);
+
     std::map<std::string, Command> commands = {
         {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)", "-bs (batch-size)"}}},
         {"query", {"Allows the user to query the weather data", {}, {}}},
