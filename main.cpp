@@ -4,6 +4,8 @@
 #include <vector>
 #include <regex>
 #include <filesystem>
+#include <future>
+
 #include "Measurement.h"
 #include "Station.h"
 #include <SQLiteCpp/SQLiteCpp.h>
@@ -45,6 +47,7 @@ void loadCommand(const std::vector<std::string>& options) {
     bool clean = false;
     bool garbage = false;
     int limit = 0;
+    int batchSize = 100;
     std::string path;
 
     for (size_t i = 0; i < options.size(); ++i) {
@@ -60,6 +63,14 @@ void loadCommand(const std::vector<std::string>& options) {
                 ++i;
             } else {
                 std::cerr << "Error: --limit option requires a value." << std::endl;
+                return;
+            }
+        } else if (options[i] == "--batch-size") {
+            if (i + 1 < options.size()) {
+                batchSize = std::stoi(options[i + 1]);
+                ++i;
+            } else {
+                std::cerr << "Error: --batch-size option requires a value." << std::endl;
                 return;
             }
         } else if (options[i] == "--clean") {
@@ -87,31 +98,74 @@ void loadCommand(const std::vector<std::string>& options) {
     std::cout << "Loading data from " << path << std::endl;
     std::vector<Measurement> measurements;
     std::map<std::string, Station> stations;
+
+    std::atomic<size_t> work{0};
+    std::pmr::vector<std::filesystem::directory_entry> files;
+    int count = 0;
+    for (const auto& entry : std::filesystem::directory_iterator(path)) {
+        if (count >= limit) {
+            break;
+        }
+        if (entry.is_regular_file() && entry.path().extension() == ".csv") {
+            files.push_back(entry);
+            count++;
+        }
+    }
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+
+
     if (async && batch) {
         std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
     }else {
         if (async) {
-            std::cout << "Loading data asynchronously..." << std::endl;
-        } else if (batch) {
-            std::cout << "Loading data in batches..." << std::endl;
-        }else {
-            int work{0};
-            std::pmr::vector<std::filesystem::directory_entry> files;
-            int count = 0;
-            for (const auto& entry : std::filesystem::directory_iterator(path)) {
-                if (count >= limit) {
-                    break;
-                }
-                if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-                    files.push_back(entry);
-                    count++;
-                }
-            }
-            auto t1 = std::chrono::high_resolution_clock::now();
 
+        } else if (batch) {
             auto bar = barkeep::ProgressBar(&work, {
-              .total = static_cast<int>(files.size()),
-              .message = "Loading data...",
+              .total = files.size(),
+              .message = "Loading data in batches...",
+              .speed = 1.,
+              .speed_unit = "measurements/s",
+              .style = barkeep::Rich,
+            });
+            try {
+                for (size_t start = 0; start < count; start += batchSize) {
+                    size_t end = std::min(start + batchSize, files.size());
+                    for (size_t i = start; i < end; ++i) {
+                        const auto& entry = files[i];
+                        std::ifstream file(entry.path().string());
+                        if (!file.is_open()) {
+                            std::cerr << "Could not open file: " << entry.path().string() << std::endl;
+                            continue;
+                        }
+
+                        std::string line;
+                        while (std::getline(file, line)) {
+                            if (line.empty() || line.find("STATION") != std::string::npos) {
+                                continue;
+                            }
+
+                            measurements.push_back(Measurement::fromCsv(line));
+                            Station station = Station::fromCsv(line);
+                            if (!stations.contains(station.id)) {
+                                stations[station.id] = station;
+                            }
+                        }
+
+                        file.close();
+                        work++;
+                    }
+                }
+            } catch (const std::filesystem::filesystem_error& e) {
+                std::cerr << "Filesystem error: " << e.what() << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
+            bar->done();
+        }else {
+            auto bar = barkeep::ProgressBar(&work, {
+              .total = files.size(),
+              .message = "Loading data synchronously...",
               .speed = 1.,
               .speed_unit = "measurements/s",
               .style = barkeep::Rich,
@@ -153,11 +207,13 @@ void loadCommand(const std::vector<std::string>& options) {
             }
             bar->done();
 
-            auto t2 = std::chrono::high_resolution_clock::now();
 
-            std::cout << "Loaded " << measurements.size() << " measurements in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms" << std::endl;
         }
     }
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Loaded " << measurements.size() << " measurements in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms" << std::endl;
 }
 
 void queryCommand(const std::vector<std::string>& options) {
@@ -168,7 +224,7 @@ int
 main(int argc, char* argv[]) {
     SetConsoleOutputCP(CP_UTF8);
     std::map<std::string, Command> commands = {
-        {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)"}}},
+        {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)", "-bs (batch-size)"}}},
         {"query", {"Allows the user to query the weather data", {}, {}}},
         {"help", {"Displays the help information", {}, {}}}
     };
