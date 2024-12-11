@@ -81,7 +81,7 @@ void loadCommand(const std::vector<std::string>& options) {
             // Ensure a value is provided after "--path"
             if (i + 1 < options.size()) {
                 path = options[i + 1];
-                ++i; // Skip the path value as it's already processed
+                ++i;
             } else {
                 std::cerr << "Error: --path option requires a value." << std::endl;
                 return;
@@ -133,6 +133,11 @@ void loadCommand(const std::vector<std::string>& options) {
                     size_t end = std::min(start + batchSize, files.size());
                     for (size_t i = start; i < end; ++i) {
                         const auto& entry = files[i];
+
+                        if (work >= files.size()) {
+                            break;
+                        }
+
                         std::ifstream file(entry.path().string());
                         if (!file.is_open()) {
                             std::cerr << "Could not open file: " << entry.path().string() << std::endl;
@@ -153,7 +158,7 @@ void loadCommand(const std::vector<std::string>& options) {
                         }
 
                         file.close();
-                        work++;
+                        ++work;
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
