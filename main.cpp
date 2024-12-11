@@ -150,6 +150,7 @@ void loadCommand(const std::vector<std::string>& options) {
     std::mutex mtx;
 
     SQLiteHandler db("weather.db");
+    db.cleanDatabase();
     db.init();
 
     int work{0};
@@ -206,7 +207,7 @@ void loadCommand(const std::vector<std::string>& options) {
             }
             bar->done();
         }else {
-            auto bar = barkeep::ProgressBar(&work, {
+            auto barFiles = barkeep::ProgressBar(&work, {
               .total = static_cast<int>(files.size()),
               .message = "Loading data synchronously...",
               .speed = 1.,
@@ -214,13 +215,46 @@ void loadCommand(const std::vector<std::string>& options) {
               .style = barkeep::Rich,
             });
             loadDataAsync(files, measurements, stations, mtx, work);
-            bar->done();
+
+            barFiles->done();
+
+            int stationWork = {0};
+            auto barStations = barkeep::ProgressBar(&stationWork, {
+              .total = static_cast<int>(stations.size()),
+              .message = "Saving stations...",
+              .speed = 1.,
+              .speed_unit = "entities/s",
+              .style = barkeep::Rich,
+            });
+            for (auto& [id, station] : stations) {
+                db.insertStation(station);
+                stationWork++;
+            }
+            barStations->done();
+
+            int measurementsWork = {0};
+            auto barMeasurements = barkeep::ProgressBar(&measurementsWork, {
+              .total = static_cast<int>(measurements.size()),
+              .message = "Saving measurements...",
+              .speed = 1.,
+              .speed_unit = "entities/s",
+              .style = barkeep::Rich,
+            });
+            for (auto& measurement : measurements) {
+                db.insertMeasurement(measurement);
+                measurementsWork++;
+            }
+            barMeasurements->done();
+
         }
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
 
     std::cout << "Loaded " << measurements.size() << " measurements in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms" << std::endl;
+
+    std::cout << "Saved " << db.countStations() << " stations" << std::endl;
+    std::cout << "Saved " << db.countMeasurements() << " measurements" << std::endl;
 }
 
 void queryCommand(const std::vector<std::string>& options) {
