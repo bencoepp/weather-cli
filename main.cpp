@@ -194,44 +194,43 @@ void loadCommand(const std::vector<std::string>& options) {
             }
             bar->done();
         } else if (batch) {
-            auto bars = barkeep::Composite(
-              {barkeep::ProgressBar(&workLoading, {
-                    .total = 100,
-                    .message = "Loading files",
-                    .speed = 0,
-                    .style = barkeep::Rich,
-                    .show = true,
-                }),
-                barkeep::ProgressBar(&workStations, {
-                    .total = 5050,
-                    .message = "Saving Stations",
-                    .speed = 0,
-                    .style = barkeep::Rich,
-                    .show = true,
-                }),
-                barkeep::ProgressBar(&workMeasurements, {
-                    .total = 171700,
-                    .message = "Saving measurements",
-                    .speed = 0,
-                    .style = barkeep::Rich,
-                    .show = true,
-                })},
-              "\n");
             for (size_t start = 0; start < files.size(); start += batchSize) {
                 size_t end = std::min(start + batchSize, files.size());
                 std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
+                std::vector<Measurement> batchMeasurements;
+                std::map<std::string, Station> batchStations;
+                loadDataAsync(batches, batchMeasurements, batchStations, mtx, workLoading);
 
-                loadDataAsync(batches, measurements, stations, mtx, workLoading);
+                auto bars = barkeep::Composite(
+              {barkeep::ProgressBar(&workMeasurements, {
+                    .total = static_cast<int>(batchMeasurements.size()),
+                    .message = "Saving measurements",
+                    .speed = 1,
+                    .style = barkeep::Rich,
+                    .show = false,
+                }),
+                barkeep::ProgressBar(&workStations, {
+                    .total = static_cast<int>(batchStations.size()),
+                    .message = "Saving stations",
+                    .speed = 1,
+                    .style = barkeep::Rich,
+                    .show = false,
+                }),},
+              "\n");
+                bars->show();
+                for (auto& measurement : batchMeasurements) {
+                    db.insertMeasurement(measurement);
+                    workMeasurements++;
+                }
+
+                for (auto& [id, station] : batchStations) {
+                    db.insertStation(station);
+                    workStations++;
+                }
+                bars->done();
+                workMeasurements = 0;
+                workStations = 0;
             }
-            for (auto& [id, station] : stations) {
-                db.insertStation(station);
-                workStations++;
-            }
-            for (auto& measurement : measurements) {
-                db.insertMeasurement(measurement);
-                workMeasurements++;
-            }
-            bars->done();
         }else {
             auto bar = barkeep::ProgressBar(&workLoading, {
               .total = static_cast<int>(files.size()),
