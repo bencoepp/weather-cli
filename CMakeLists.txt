@@ -14,6 +14,8 @@ add_executable(weather_cli main.cpp
         Measurement.h
         barkeep.h
         SQLiteHandler.cpp
-        SQLiteHandler.h)
+        SQLiteHandler.h
+        WeatherHandler.cpp
+        WeatherHandler.h)
 
 target_link_libraries(weather_cli SQLiteCpp)
