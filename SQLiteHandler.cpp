@@ -140,6 +140,26 @@ Measurement & SQLiteHandler::insertMeasurement(Measurement &measurement) const {
     return measurement;
 }
 
+void SQLiteHandler::insertMeasurements(std::vector<Measurement> &measurements) const {
+    SQLite::Statement query(db, R"(INSERT INTO measurements (id, station, date, reportType, qualityControlFlag, wind, cloudCeiling, visibilityDistance, temperature, dewPoints, seaLevelPressure)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?))");
+    for (Measurement &measurement : measurements) {
+        query.bind(1, measurement.id);
+        query.bind(2, measurement.station);
+        query.bind(3, measurement.date);
+        query.bind(4, measurement.reportType);
+        query.bind(5, measurement.qualityControlFlag);
+        query.bind(6, measurement.wind);
+        query.bind(7, measurement.cloudCeiling);
+        query.bind(8, measurement.visibilityDistance);
+        query.bind(9, measurement.temperature);
+        query.bind(10, measurement.dewPoints);
+        query.bind(11, measurement.seaLevelPressure);
+        query.exec();
+        query.clearBindings();
+    }
+}
+
 Station & SQLiteHandler::insertStation(Station &station) const {
     SQLite::Statement query(db, R"(INSERT INTO stations (id, name, longitude, latitude, elevation, callSign)
                                    VALUES (?, ?, ?, ?, ?, ?))");
@@ -154,6 +174,21 @@ Station & SQLiteHandler::insertStation(Station &station) const {
     query.exec();
 
     return station;
+}
+
+void SQLiteHandler::insertStations(std::vector<Station> &stations) const {
+    SQLite::Statement query(db, R"(INSERT INTO stations (id, name, longitude, latitude, elevation, callSign)
+                                   VALUES (?, ?, ?, ?, ?, ?))");
+    for (Station &station : stations) {
+        query.bind(1, station.id);
+        query.bind(2, station.name);
+        query.bind(3, station.longitude);
+        query.bind(4, station.latitude);
+        query.bind(5, station.elevation);
+        query.bind(6, station.callSign);
+        query.exec();
+        query.clearBindings();
+    }
 }
 
 Measurement & SQLiteHandler::updateMeasurements(Measurement &measurement) {

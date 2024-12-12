@@ -14,7 +14,9 @@ public:
     Measurement getMeasurement(const std::string &measurementId) const;
     Station getStation(const std::string &stationId) const;
     Measurement& insertMeasurement(Measurement& measurement) const;
+    void insertMeasurements(std::vector<Measurement>& measurements) const;
     Station& insertStation(Station& station) const;
+    void insertStations(std::vector<Station>& stations) const;
     Measurement& updateMeasurements(Measurement& measurement);
     Station& updateStation(Station& station);
     bool deleteMeasurements(Measurement& measurement);

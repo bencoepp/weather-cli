@@ -125,6 +125,13 @@ void loadCommand(const std::vector<std::string>& options) {
 
     auto t2 = std::chrono::high_resolution_clock::now();
 
+    std::cout << "Finished loading data in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms" << std::endl;
+
+    SQLiteHandler db("weather.db");
+
+    std::cout << "total measurements " << db.countMeasurements() << std::endl;
+    std::cout << "total stations " << db.countStations() << std::endl;
+
 }
 
 void queryCommand(const std::vector<std::string>& options) {
