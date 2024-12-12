@@ -127,20 +127,17 @@ std::vector<std::filesystem::directory_entry> WeatherHandler::loadFiles() const 
     return files;
 }
 
-void WeatherHandler::save(const std::vector<Measurement>& measurements, std::mutex& mutex) {
-    for (auto measurement: measurements) {
-        std::lock_guard lock(mutex);
-        this->db.insertMeasurement(measurement);
-        this->workMeasurements++;
-    }
+void WeatherHandler::save(std::vector<Measurement> &measurements, std::mutex &mutex) {
+    std::lock_guard lock(mutex);
+    this->db.insertMeasurements(measurements);
+    this->workMeasurements++;
+
 }
 
-void WeatherHandler::save(const std::vector<Station>& stations, std::mutex& mutex) {
-    for (auto station: stations) {
-        std::lock_guard lock(mutex);
-        this->db.insertStation(station);
-        this->workStations++;
-    }
+void WeatherHandler::save(std::vector<Station> &stations, std::mutex &mutex) {
+    std::lock_guard lock(mutex);
+    this->db.insertStations(stations);
+    this->workStations += stations.size();
 }
 
 std::shared_ptr<barkeep::CompositeDisplay> WeatherHandler::generateBars(int files, int measurements, int stations, int batches) {

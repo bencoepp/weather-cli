@@ -144,6 +144,8 @@ void SQLiteHandler::insertMeasurements(std::vector<Measurement> &measurements) c
     SQLite::Statement query(db, R"(INSERT INTO measurements (id, station, date, reportType, qualityControlFlag, wind, cloudCeiling, visibilityDistance, temperature, dewPoints, seaLevelPressure)
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?))");
     for (Measurement &measurement : measurements) {
+        measurement.id = generateUniqueId("measurements");
+
         query.bind(1, measurement.id);
         query.bind(2, measurement.station);
         query.bind(3, measurement.date);
@@ -157,6 +159,7 @@ void SQLiteHandler::insertMeasurements(std::vector<Measurement> &measurements) c
         query.bind(11, measurement.seaLevelPressure);
         query.exec();
         query.clearBindings();
+        query.reset();
     }
 }
 
@@ -188,6 +191,7 @@ void SQLiteHandler::insertStations(std::vector<Station> &stations) const {
         query.bind(6, station.callSign);
         query.exec();
         query.clearBindings();
+        query.reset();
     }
 }
 

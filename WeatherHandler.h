@@ -29,8 +29,8 @@ private:
     int workStations = 0;
     int workBatches = 0;
     std::vector<std::filesystem::directory_entry> loadFiles() const;
-    void save(const std::vector<Measurement>& measurements, std::mutex& mutex);
-    void save(const std::vector<Station>& stations, std::mutex& mutex);
+    void save(std::vector<Measurement> &measurements, std::mutex &mutex);
+    void save(std::vector<Station> &stations, std::mutex &mutex);
     std::shared_ptr<barkeep::CompositeDisplay> generateBars(int files, int measurements, int stations, int batches);
 };
 
