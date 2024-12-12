@@ -42,54 +42,6 @@ void helpCommand(const std::map<std::string, Command>& commands) {
     }
 }
 
-void loadDataAsync(const std::vector<std::filesystem::directory_entry>& batch,
-                  std::vector<Measurement>& measurements,
-                  std::map<std::string, Station>& stations,
-                  std::mutex& mtx,
-                  int& work) {
-    try {
-        for (const auto& entry : batch) {
-            if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-                std::ifstream file(entry.path().string());
-                if (!file.is_open()) {
-                    std::cerr << "Could not open file: " << entry.path().string() << std::endl;
-                    continue;
-                }
-
-                std::string line;
-                while (std::getline(file, line)) {
-                    if (line.empty()) {
-                        continue;
-                    }
-
-                    if (line.find("STATION") != std::string::npos) {
-                        continue;
-                    }
-                    Measurement measurement = Measurement::fromCsv(line);
-                    Station station = Station::fromCsv(line);
-
-                    std::lock_guard<std::mutex> lock(mtx);
-                    measurements.push_back(measurement);
-                    if (!stations.contains(station.id)) {
-                        stations.insert({station.id, station});
-                    }
-                }
-
-                file.close();
-
-                {
-                    std::lock_guard<std::mutex> lock(mtx);
-                    work++;
-                }
-            }
-        }
-    } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-}
-
 void loadCommand(const std::vector<std::string>& options) {
     bool drop = false;
     bool async = false;
@@ -161,9 +113,9 @@ void loadCommand(const std::vector<std::string>& options) {
         std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
     }else {
         if (async) {
-
+            weatherHandler.loadAsync(mtx);
         } else if (batch) {
-
+            weatherHandler.loadBatch(mtx);
         }else {
             weatherHandler.load(mtx);
         }

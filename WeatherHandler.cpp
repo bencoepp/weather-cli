@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <future>
 
 #include "barkeep.h"
 
@@ -15,7 +16,10 @@ WeatherHandler::WeatherHandler(std::string path, LoadOptions options) : db("weat
 
 void WeatherHandler::load(std::mutex& mutex) {
     std::vector<std::filesystem::directory_entry> files = loadFiles();
+    loadBatch(mutex, files, false);
+}
 
+void WeatherHandler::loadBatch(std::mutex &mutex, std::vector<std::filesystem::directory_entry> files, bool isAsync) {
     for (const auto& entry: files) {
         if (entry.is_regular_file() && entry.path().extension() != ".csv") {
             continue;
@@ -40,9 +44,9 @@ void WeatherHandler::load(std::mutex& mutex) {
                 continue;
             }
 
-            Station station = Station::fromCsv(line);
-
             measurements.push_back(Measurement::fromCsv(line));
+
+            Station station = Station::fromCsv(line);
             if (std::find(this->stations.begin(), this->stations.end(), station.id) == this->stations.end()) {
                 this->stations.push_back(station.id);
                 stations.push_back(station);
@@ -59,6 +63,7 @@ void WeatherHandler::load(std::mutex& mutex) {
             .total = static_cast<int>(files.size()),
             .message = "Load files",
             .speed = 1,
+          .speed_unit = "files/s",
             .style = barkeep::Rich,
             .show = false,
         }),
@@ -66,6 +71,7 @@ void WeatherHandler::load(std::mutex& mutex) {
             .total = static_cast<int>(measurements.size()),
             .message = "Save measurements",
             .speed = 1,
+            .speed_unit = "entities/s",
             .style = barkeep::Rich,
             .show = false,
         }),
@@ -73,17 +79,46 @@ void WeatherHandler::load(std::mutex& mutex) {
             .total = static_cast<int>(stations.size()),
             .message = "Save stations",
             .speed = 1,
+            .speed_unit = "entities/s",
             .style = barkeep::Rich,
             .show = false,
         })},
       "\n");
-        bars->show();
+        if (!isAsync) {
+            bars->show();
+        }
 
         save(measurements, mutex);
         save(stations, mutex);
         this->workFiles++;
+        if (!isAsync) {
+            bars->done();
+        }
+    }
+}
 
-        bars->done();
+void WeatherHandler::loadBatch(std::mutex &mutex) {
+    std::vector<std::filesystem::directory_entry> files = loadFiles();
+    for (size_t start = 0; start < files.size(); start += this->options->batchSize) {
+        size_t end = std::min(start + this->options->batchSize, files.size());
+        std::vector batches(files.begin() + start, files.begin() + end);
+        loadBatch(mutex, batches, false);
+    }
+}
+
+void WeatherHandler::loadAsync(std::mutex& mutex) {
+    std::vector<std::filesystem::directory_entry> files = loadFiles();
+    std::vector<std::future<void>> futures;
+    for (size_t start = 0; start < files.size(); start += this->options->batchSize) {
+        size_t end = std::min(start + this->options->batchSize, files.size());
+        std::vector batches(files.begin() + start, files.begin() + end);
+
+        futures.push_back(std::async(std::launch::async, [this, &mutex, batches]() {
+            loadBatch(mutex, batches, true);
+        }));
+    }
+    for (auto& future : futures) {
+        future.get();
     }
 }
 
