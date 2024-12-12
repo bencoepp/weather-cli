@@ -105,6 +105,8 @@ void loadCommand(const std::vector<std::string>& options) {
     WeatherHandler weatherHandler(path, {
         .limit = limit,
         .batchSize = batchSize,
+        .async = async,
+        .batch = batch,
     });
 
     auto t1 = std::chrono::high_resolution_clock::now();

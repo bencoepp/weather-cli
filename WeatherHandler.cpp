@@ -16,10 +16,10 @@ WeatherHandler::WeatherHandler(std::string path, LoadOptions options) : db("weat
 
 void WeatherHandler::load(std::mutex& mutex) {
     std::vector<std::filesystem::directory_entry> files = loadFiles();
-    loadBatch(mutex, files, false);
+    loadBatch(mutex, files);
 }
 
-void WeatherHandler::loadBatch(std::mutex &mutex, std::vector<std::filesystem::directory_entry> files, bool isAsync) {
+void WeatherHandler::loadBatch(std::mutex &mutex, std::vector<std::filesystem::directory_entry> files) {
     for (const auto& entry: files) {
         if (entry.is_regular_file() && entry.path().extension() != ".csv") {
             continue;
@@ -58,64 +58,42 @@ void WeatherHandler::loadBatch(std::mutex &mutex, std::vector<std::filesystem::d
         this->workMeasurements = 0;
         std::cout << "\x1B[2J\x1B[H";
 
-        auto bars = barkeep::Composite(
-      {barkeep::ProgressBar(&this->workFiles, {
-            .total = static_cast<int>(files.size()),
-            .message = "Load files",
-            .speed = 1,
-          .speed_unit = "files/s",
-            .style = barkeep::Rich,
-            .show = false,
-        }),
-        barkeep::ProgressBar(&this->workMeasurements, {
-            .total = static_cast<int>(measurements.size()),
-            .message = "Save measurements",
-            .speed = 1,
-            .speed_unit = "entities/s",
-            .style = barkeep::Rich,
-            .show = false,
-        }),
-        barkeep::ProgressBar(&this->workStations, {
-            .total = static_cast<int>(stations.size()),
-            .message = "Save stations",
-            .speed = 1,
-            .speed_unit = "entities/s",
-            .style = barkeep::Rich,
-            .show = false,
-        })},
-      "\n");
-        if (!isAsync) {
-            bars->show();
-        }
+        auto bars = generateBars(files.size(), measurements.size(), stations.size(), this->batchCount);
+
+        bars->show();
 
         save(measurements, mutex);
         save(stations, mutex);
         this->workFiles++;
-        if (!isAsync) {
-            bars->done();
-        }
+
+        bars->done();
     }
 }
 
 void WeatherHandler::loadBatch(std::mutex &mutex) {
     std::vector<std::filesystem::directory_entry> files = loadFiles();
+    this->batchCount = std::ceil(files.size() / this->options->batchSize);
     for (size_t start = 0; start < files.size(); start += this->options->batchSize) {
         size_t end = std::min(start + this->options->batchSize, files.size());
         std::vector batches(files.begin() + start, files.begin() + end);
-        loadBatch(mutex, batches, false);
+        loadBatch(mutex, batches);
+        this->workBatches++;
+        this->workFiles = 0;
     }
 }
 
 void WeatherHandler::loadAsync(std::mutex& mutex) {
     std::vector<std::filesystem::directory_entry> files = loadFiles();
     std::vector<std::future<void>> futures;
+    this->batchCount = std::ceil(files.size() / this->options->batchSize);
     for (size_t start = 0; start < files.size(); start += this->options->batchSize) {
         size_t end = std::min(start + this->options->batchSize, files.size());
         std::vector batches(files.begin() + start, files.begin() + end);
 
         futures.push_back(std::async(std::launch::async, [this, &mutex, batches]() {
-            loadBatch(mutex, batches, true);
+            loadBatch(mutex, batches);
         }));
+        this->workBatches++;
     }
     for (auto& future : futures) {
         future.get();
@@ -153,5 +131,103 @@ void WeatherHandler::save(const std::vector<Station>& stations, std::mutex& mute
         std::lock_guard lock(mutex);
         this->db.insertStation(station);
         this->workStations++;
+    }
+}
+
+std::shared_ptr<barkeep::CompositeDisplay> WeatherHandler::generateBars(int files, int measurements, int stations, int batches) {
+    if (this->options->async) {
+        return barkeep::Composite(
+                {barkeep::ProgressBar(&this->workBatches, {
+                .total = batches,
+                .message = "Batches",
+                .speed = 1,
+                .speed_unit = "batch/s",
+                .style = barkeep::Rich,
+                .show = false,
+                }),
+              barkeep::ProgressBar(&this->workFiles, {
+                    .total = files,
+                    .message = "Load files",
+                    .speed = 1,
+                  .speed_unit = "files/s",
+                    .style = barkeep::Rich,
+                    .show = false,
+                }),
+                barkeep::ProgressBar(&this->workMeasurements, {
+                    .total = measurements,
+                    .message = "Save measurements",
+                    .speed = 1,
+                    .speed_unit = "entities/s",
+                    .style = barkeep::Rich,
+                    .show = false,
+                }),
+                barkeep::ProgressBar(&this->workStations, {
+                    .total =stations,
+                    .message = "Save stations",
+                    .speed = 1,
+                    .speed_unit = "entities/s",
+                    .style = barkeep::Rich,
+                    .show = false,
+                })},"\n");
+    }else if (this->options->batch) {
+        return barkeep::Composite(
+        {barkeep::ProgressBar(&this->workBatches, {
+        .total = batches,
+        .message = "Batches",
+        .speed = 1,
+        .speed_unit = "batch/s",
+        .style = barkeep::Rich,
+        .show = false,
+        }),
+      barkeep::ProgressBar(&this->workFiles, {
+            .total = files,
+            .message = "Load files",
+            .speed = 1,
+          .speed_unit = "files/s",
+            .style = barkeep::Rich,
+            .show = false,
+        }),
+        barkeep::ProgressBar(&this->workMeasurements, {
+            .total = measurements,
+            .message = "Save measurements",
+            .speed = 1,
+            .speed_unit = "entities/s",
+            .style = barkeep::Rich,
+            .show = false,
+        }),
+        barkeep::ProgressBar(&this->workStations, {
+            .total =stations,
+            .message = "Save stations",
+            .speed = 1,
+            .speed_unit = "entities/s",
+            .style = barkeep::Rich,
+            .show = false,
+        })},"\n");
+    }else {
+        return barkeep::Composite(
+      {barkeep::ProgressBar(&this->workFiles, {
+            .total = files,
+            .message = "Load files",
+            .speed = 1,
+          .speed_unit = "files/s",
+            .style = barkeep::Rich,
+            .show = false,
+        }),
+        barkeep::ProgressBar(&this->workMeasurements, {
+            .total = measurements,
+            .message = "Save measurements",
+            .speed = 1,
+            .speed_unit = "entities/s",
+            .style = barkeep::Rich,
+            .show = false,
+        }),
+        barkeep::ProgressBar(&this->workStations, {
+            .total =stations,
+            .message = "Save stations",
+            .speed = 1,
+            .speed_unit = "entities/s",
+            .style = barkeep::Rich,
+            .show = false,
+        })},"\n");
     }
 }
