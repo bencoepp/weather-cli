@@ -200,7 +200,6 @@ std::vector<Measurement> SQLiteHandler::getAllMeasurements() const {
     }
 
     return measurements;
-
 }
 
 std::vector<Station> SQLiteHandler::getAllStations() const {
