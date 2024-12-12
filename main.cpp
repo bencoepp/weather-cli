@@ -12,6 +12,7 @@
 #include <windows.h>
 #include "barkeep.h"
 #include "SQLiteHandler.h"
+#include "WeatherHandler.h"
 
 struct Command {
     std::string description;
@@ -149,24 +150,10 @@ void loadCommand(const std::vector<std::string>& options) {
     std::map<std::string, Station> stations;
     std::mutex mtx;
 
-    SQLiteHandler db("weather.db");
-    db.cleanDatabase();
-    db.init();
-
-    int workLoading{0};
-    int workStations{0};
-    int workMeasurements{0};
-    std::vector<std::filesystem::directory_entry> files;
-    int count = 0;
-    for (const auto& entry : std::filesystem::directory_iterator(path)) {
-        if (count >= limit) {
-            break;
-        }
-        if (entry.is_regular_file() && entry.path().extension() == ".csv") {
-            files.push_back(entry);
-            count++;
-        }
-    }
+    WeatherHandler weatherHandler(path, {
+        .limit = limit,
+        .batchSize = batchSize,
+    });
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
@@ -174,123 +161,16 @@ void loadCommand(const std::vector<std::string>& options) {
         std::cerr << "Error: --async and --batch options are mutually exclusive." << std::endl;
     }else {
         if (async) {
-            std::vector<std::future<void>> futures;
-            auto bar = barkeep::ProgressBar(&workLoading, {
-                    .total = static_cast<int>(files.size()),
-                    .message = "Loading data async...",
-                    .speed = 1.0,
-                    .speed_unit = "measurements/s",
-                    .style = barkeep::Rich,
-                });
-            for (size_t start = 0; start < files.size(); start += batchSize) {
-                size_t end = std::min(start + batchSize, files.size());
-                std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
 
-                futures.push_back(std::async(std::launch::async, loadDataAsync, std::move(batches), std::ref(measurements), std::ref(stations), std::ref(mtx), std::ref(workLoading)));
-            }
-
-            for (auto& future : futures) {
-                future.get();
-            }
-            bar->done();
         } else if (batch) {
-            for (size_t start = 0; start < files.size(); start += batchSize) {
-                size_t end = std::min(start + batchSize, files.size());
-                std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
-                std::vector<Measurement> batchMeasurements;
-                std::map<std::string, Station> batchStations;
-                loadDataAsync(batches, batchMeasurements, batchStations, mtx, workLoading);
 
-                std::cout << "\x1B[2J\x1B[H";
-
-                auto bars = barkeep::Composite(
-                {barkeep::ProgressBar(&workLoading, {
-                      .total = static_cast<int>(files.size()),
-                      .message = "Loading data",
-                      .speed = 1,
-                      .speed_unit = "files/s",
-                      .style = barkeep::Rich,
-                      .show = false,
-                }),
-                barkeep::ProgressBar(&workMeasurements, {
-                    .total = static_cast<int>(batchMeasurements.size()),
-                    .message = "Saving measurements",
-                    .speed = 1,
-                    .speed_unit = "entities/s",
-                    .style = barkeep::Rich,
-                    .show = false,
-                }),
-                barkeep::ProgressBar(&workStations, {
-                    .total = static_cast<int>(batchStations.size()),
-                    .message = "Saving stations",
-                    .speed = 1,
-                    .speed_unit = "entities/s",
-                    .style = barkeep::Rich,
-                    .show = false,
-                }),},
-              "\n");
-                bars->show();
-
-                for (auto& measurement : batchMeasurements) {
-                    db.insertMeasurement(measurement);
-                    workMeasurements++;
-                }
-
-                for (auto& [id, station] : batchStations) {
-                    db.insertStation(station);
-                    workStations++;
-                }
-                bars->done();
-                workMeasurements = 0;
-                workStations = 0;
-            }
         }else {
-            auto bar = barkeep::ProgressBar(&workLoading, {
-              .total = static_cast<int>(files.size()),
-              .message = "Loading data",
-              .speed = 1.,
-              .speed_unit = "files/s",
-              .style = barkeep::ProgressBarStyle::Rich,
-            });
-            loadDataAsync(files, measurements, stations, mtx, workLoading);
-            bar->done();
-            auto bars = barkeep::Composite(
-              {barkeep::ProgressBar(&workMeasurements, {
-                    .total = static_cast<int>(measurements.size()),
-                    .message = "Saving measurements",
-                    .speed = 1,
-                    .speed_unit = "entities/s",
-                    .style = barkeep::Rich,
-                    .show = false,
-                }),
-                barkeep::ProgressBar(&workStations, {
-                    .total = static_cast<int>(stations.size()),
-                    .message = "Saving stations",
-                    .speed = 1,
-                    .speed_unit = "entities/s",
-                    .style = barkeep::Rich,
-                    .show = false,
-                })},
-              "\n");
-            bars->show();
-            for (auto& measurement : measurements) {
-                db.insertMeasurement(measurement);
-                workMeasurements++;
-            }
-            for (auto& [id, station] : stations) {
-                db.insertStation(station);
-                workStations++;
-            }
-            bars->done();
+            weatherHandler.load(mtx);
         }
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Loaded " << measurements.size() << " measurements in " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms" << std::endl;
-
-    std::cout << "Saved " << db.countStations() << " stations" << std::endl;
-    std::cout << "Saved " << db.countMeasurements() << " measurements" << std::endl;
 }
 
 void queryCommand(const std::vector<std::string>& options) {
