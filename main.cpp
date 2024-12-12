@@ -194,6 +194,14 @@ void loadCommand(const std::vector<std::string>& options) {
             }
             bar->done();
         } else if (batch) {
+            auto bar = barkeep::ProgressBar(&workLoading, {
+              .total = static_cast<int>(files.size()),
+              .message = "Loading data",
+              .speed = 1.,
+              .speed_unit = "file/s",
+              .style = barkeep::ProgressBarStyle::Rich,
+            });
+
             for (size_t start = 0; start < files.size(); start += batchSize) {
                 size_t end = std::min(start + batchSize, files.size());
                 std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
@@ -206,6 +214,7 @@ void loadCommand(const std::vector<std::string>& options) {
                     .total = static_cast<int>(batchMeasurements.size()),
                     .message = "Saving measurements",
                     .speed = 1,
+                    .speed_unit = "entities/s",
                     .style = barkeep::Rich,
                     .show = false,
                 }),
@@ -213,6 +222,7 @@ void loadCommand(const std::vector<std::string>& options) {
                     .total = static_cast<int>(batchStations.size()),
                     .message = "Saving stations",
                     .speed = 1,
+                    .speed_unit = "entities/s",
                     .style = barkeep::Rich,
                     .show = false,
                 }),},
@@ -231,6 +241,7 @@ void loadCommand(const std::vector<std::string>& options) {
                 workMeasurements = 0;
                 workStations = 0;
             }
+            bar->done();
         }else {
             auto bar = barkeep::ProgressBar(&workLoading, {
               .total = static_cast<int>(files.size()),
