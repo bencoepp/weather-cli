@@ -194,14 +194,6 @@ void loadCommand(const std::vector<std::string>& options) {
             }
             bar->done();
         } else if (batch) {
-            auto bar = barkeep::ProgressBar(&workLoading, {
-              .total = static_cast<int>(files.size()),
-              .message = "Loading data",
-              .speed = 1.,
-              .speed_unit = "file/s",
-              .style = barkeep::ProgressBarStyle::Rich,
-            });
-
             for (size_t start = 0; start < files.size(); start += batchSize) {
                 size_t end = std::min(start + batchSize, files.size());
                 std::vector<std::filesystem::directory_entry> batches(files.begin() + start, files.begin() + end);
@@ -209,8 +201,18 @@ void loadCommand(const std::vector<std::string>& options) {
                 std::map<std::string, Station> batchStations;
                 loadDataAsync(batches, batchMeasurements, batchStations, mtx, workLoading);
 
+                std::cout << "\x1B[2J\x1B[H";
+
                 auto bars = barkeep::Composite(
-              {barkeep::ProgressBar(&workMeasurements, {
+                {barkeep::ProgressBar(&workLoading, {
+                      .total = static_cast<int>(files.size()),
+                      .message = "Loading data",
+                      .speed = 1,
+                      .speed_unit = "files/s",
+                      .style = barkeep::Rich,
+                      .show = false,
+                }),
+                barkeep::ProgressBar(&workMeasurements, {
                     .total = static_cast<int>(batchMeasurements.size()),
                     .message = "Saving measurements",
                     .speed = 1,
@@ -228,6 +230,7 @@ void loadCommand(const std::vector<std::string>& options) {
                 }),},
               "\n");
                 bars->show();
+
                 for (auto& measurement : batchMeasurements) {
                     db.insertMeasurement(measurement);
                     workMeasurements++;
@@ -241,7 +244,6 @@ void loadCommand(const std::vector<std::string>& options) {
                 workMeasurements = 0;
                 workStations = 0;
             }
-            bar->done();
         }else {
             auto bar = barkeep::ProgressBar(&workLoading, {
               .total = static_cast<int>(files.size()),
