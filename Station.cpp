@@ -3,6 +3,16 @@
 #include <sstream>
 #include <vector>
 
+/**
+ * Parses a CSV line and constructs a Station object using the extracted data.
+ * The method assumes the CSV line is structured with specific fields and uses
+ * their positions to populate the attributes of a Station object.
+ *
+ * @param line A string representing a single row of CSV data. Each field is separated
+ *             by a comma, and fields potentially containing commas are enclosed in quotes.
+ * @return A Station object constructed using the data extracted from the CSV line.
+ *         In case of parsing issues, an empty Station object may be returned.
+ */
 Station Station::fromCsv(std::string line) {
     Station station = {};
 

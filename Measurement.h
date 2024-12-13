@@ -4,6 +4,18 @@
 #include <ctime>
 #include <vector>
 
+/**
+ * @class Measurement
+ * @brief Represents a meteorological measurement containing various observations and metrics.
+ *
+ * The Measurement class encapsulates a wide range of meteorological data, from basic atmospheric
+ * conditions to more detailed environmental information. It is designed to represent a single
+ * measurement or observation and provides storage for data such as wind, temperature, precipitation,
+ * and more.
+ *
+ * The class includes static functionality to parse data from a CSV-formatted string into a
+ * Measurement object.
+ */
 class Measurement {
 public:
     std::string id;

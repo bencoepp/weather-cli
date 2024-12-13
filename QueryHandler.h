@@ -5,6 +5,13 @@
 #include "SQLiteHandler.h"
 
 
+/**
+ * @class QueryHandler
+ * @brief Handles the execution of queries, sorting, and displaying tabulated results.
+ *
+ * This class provides functionality for processing database queries, sorting the resulting data,
+ * generating tables for display, and optionally displaying a status bar with performance metrics.
+ */
 class QueryHandler {
 public:
     QueryHandler(std::string query, std::string sortType, std::string sortParameter, bool statusBar);

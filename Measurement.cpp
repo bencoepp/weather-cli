@@ -3,6 +3,19 @@
 #include <iostream>
 #include <vector>
 
+/**
+ * Parses a CSV line and creates a Measurement object from the extracted data.
+ *
+ * This method processes a single line of a CSV formatted string, splitting it into tokens
+ * while respecting quotes. The parsed tokens are then used to populate the fields of
+ * a Measurement object.
+ *
+ * @param line The input string representing a single CSV line containing measurement data.
+ *             Fields are expected to be comma-separated, and quotes are handled to preserve
+ *             values containing commas.
+ * @return A Measurement object populated with the data extracted from the input CSV line.
+ *         If parsing fails or data is missing, the method may produce undefined or default values.
+ */
 Measurement Measurement::fromCsv(std::string line) {
     Measurement measurement = {};
 

@@ -7,6 +7,11 @@
 #include "SQLiteCpp/Database.h"
 
 
+/**
+ * @class SQLiteHandler
+ * @brief Provides functionalities for interacting with an SQLite database, including operations
+ *        for managing `Measurement` and `Station` records, executing queries, and database initialization.
+ */
 class SQLiteHandler {
 public:
     explicit SQLiteHandler(const std::string& database);

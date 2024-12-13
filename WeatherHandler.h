@@ -3,6 +3,14 @@
 #include "barkeep.h"
 #include "SQLiteHandler.h"
 
+/**
+ * @struct LoadOptions
+ * @brief Specifies configuration options for loading data processes.
+ *
+ * LoadOptions struct defines various parameters to control the behavior of data loading,
+ * including limits on the number of files, batch sizes, and whether asynchronous or batch
+ * operations should be performed.
+ */
 struct LoadOptions {
     int limit;
     int batchSize;
@@ -10,6 +18,14 @@ struct LoadOptions {
     bool batch;
 };
 
+/**
+ * @class WeatherHandler
+ * @brief Handles weather data processing, batch loading, and database operations.
+ *
+ * The WeatherHandler class is responsible for managing weather data, including loading files,
+ * batch processing, and saving data into a SQLite database. Additionally, it provides asynchronous
+ * and batch-loading functionality along with progress tracking.
+ */
 class WeatherHandler {
 public:
     WeatherHandler(std::string path, LoadOptions options);
