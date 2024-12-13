@@ -7,12 +7,13 @@
 
 class QueryHandler {
 public:
-    QueryHandler(std::string query, std::string sortType, bool statusBar);
+    QueryHandler(std::string query, std::string sortType, std::string sortParameter, bool statusBar);
     void execute();
 private:
     SQLiteHandler db;
     std::string query;
     std::string sortType;
+    std::string sortParameter;
     std::vector<std::map<std::string, auto>> values;
     bool statusBar;
     void generateStatusBar();

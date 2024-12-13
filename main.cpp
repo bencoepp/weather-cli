@@ -139,6 +139,7 @@ void queryCommand(const std::vector<std::string>& options) {
     bool bar = false;
     std::string query;
     std::string sortType;
+    std::string sortParameter;
     for (size_t i = 0; i < options.size(); ++i) {
         if (options[i] == "--bar") {
             bar = true;
@@ -146,24 +147,23 @@ void queryCommand(const std::vector<std::string>& options) {
             if (i + 1 < options.size()) {
                 query = options[i + 1];
                 ++i;
-            } else {
-                std::cerr << "Error: --limit option requires a value." << std::endl;
-                return;
             }
         } else if (options[i] == "--sort") {
             if (i + 1 < options.size()) {
                 sortType = options[i + 1];
                 ++i;
-            } else {
-                std::cerr << "Error: --batch-size option requires a value." << std::endl;
-                return;
+            }
+        } else if (options[i] == "--sort-parameter") {
+            if (i + 1 < options.size()) {
+                sortParameter = options[i + 1];
+                ++i;
             }
         } else {
             std::cerr << "Warning: Unknown option '" << options[i] << "' ignored." << std::endl;
         }
     }
 
-    QueryHandler queryHandler(query, sortType, bar);
+    QueryHandler queryHandler(query, sortType, sortParameter, bar);
     queryHandler.execute();
 }
 

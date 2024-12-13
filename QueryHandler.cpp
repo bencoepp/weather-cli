@@ -3,7 +3,9 @@
 #include <iostream>
 #include <utility>
 
-QueryHandler::QueryHandler(std::string query, std::string sortType, const bool statusBar) : db("weather.db"), query(std::move(query)), sortType(std::move(sortType)), statusBar(statusBar) {
+#include "tabulate.h"
+
+QueryHandler::QueryHandler(std::string query, std::string sortType, std::string sortParameter, const bool statusBar) : db("weather.db"), query(std::move(query)), sortType(std::move(sortType)), sortParameter(std::move(sortParameter)), statusBar(statusBar) {
 }
 
 void QueryHandler::execute() {
@@ -34,6 +36,14 @@ void QueryHandler::generateStatusBar() {
 }
 
 void QueryHandler::generateTable() {
+    tabulate::Table table;
+    table.add_row(tabulate::Table::Row_t{"S/N", "Movie Name", "Director", "Estimated Budget", "Release Date"});
+    table.add_row(tabulate::Table::Row_t{"tt1979376", "Toy Story 4", "Josh Cooley", "$200,000,000", "21 June 2019"});
+    table.add_row(tabulate::Table::Row_t{"tt3263904", "Sully", "Clint Eastwood", "$60,000,000", "9 September 2016"});
+    table.add_row(
+        {"tt1535109", "Captain Phillips", "Paul Greengrass", "$55,000,000", " 11 October 2013"});
+
+    std::cout << table << std::endl;
 }
 
 void QueryHandler::sortData() {

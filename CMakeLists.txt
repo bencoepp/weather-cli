@@ -18,6 +18,7 @@ add_executable(weather_cli main.cpp
         WeatherHandler.cpp
         WeatherHandler.h
         QueryHandler.cpp
-        QueryHandler.h)
+        QueryHandler.h
+        tabulate.h)
 
 target_link_libraries(weather_cli SQLiteCpp)
