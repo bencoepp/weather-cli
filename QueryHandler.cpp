@@ -37,21 +37,24 @@ void QueryHandler::generateStatusBar() const {
 
 void QueryHandler::generateTable() {
     tabulate::Table table;
-
-    const int maxSize = values.size() > 50 ? 50 : values.size();
-
-    for (int i = 0; i < maxSize ; ++i) {
-         std::vector<std::string> row;
-        table.add_row(tabulate::RowStream{} << row);
+    bool firstRow = true;
+    int maxValues = values.size() > 50 ? 50 : values.size();
+    std::vector<variant<std::string, const char *, string_view, tabulate::Table>> header;
+    for (int i = 0; i < maxValues; i++) {
+        const std::map<std::string, std::string> &row = this->values[i];
+        std::vector<variant<std::string, const char *, string_view, tabulate::Table>> rowValues;
+        for (const auto &column : row) {
+            if (firstRow) {
+                header.push_back(column.first);
+            }
+            rowValues.push_back(column.second);
+        }
+        if (firstRow) {
+            table.add_row(header);
+        }
+        table.add_row(rowValues);
+        firstRow = false;
     }
-
-
-    table.add_row(tabulate::Table::Row_t{"S/N", "Movie Name", "Director", "Estimated Budget", "Release Date"});
-    table.add_row(tabulate::Table::Row_t{"tt1979376", "Toy Story 4", "Josh Cooley", "$200,000,000", "21 June 2019"});
-    table.add_row(tabulate::Table::Row_t{"tt3263904", "Sully", "Clint Eastwood", "$60,000,000", "9 September 2016"});
-    table.add_row(
-        {"tt1535109", "Captain Phillips", "Paul Greengrass", "$55,000,000", " 11 October 2013"});
-
     std::cout << table << std::endl;
 }
 
