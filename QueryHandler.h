@@ -1,14 +1,27 @@
-﻿//
-// Created by benco on 13/12/2024.
-//
-
-#ifndef QUERYHANDLER_H
+﻿#ifndef QUERYHANDLER_H
 #define QUERYHANDLER_H
+#include <string>
 
+#include "SQLiteHandler.h"
 
 
 class QueryHandler {
+public:
+    QueryHandler(std::string query, std::string sortType, bool statusBar);
+    void execute();
+private:
+    SQLiteHandler db;
+    std::string query;
+    std::string sortType;
+    std::vector<std::map<std::string, auto>> values;
+    bool statusBar;
+    void generateStatusBar();
+    void generateTable();
+    void sortData();
+    void queryData();
 
+    std::chrono::system_clock::time_point startTimer;
+    std::chrono::system_clock::time_point endTimer;
 };
 
 

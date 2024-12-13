@@ -275,6 +275,20 @@ SQLiteHandler::~SQLiteHandler() {
     db = nullptr;
 }
 
+SQLite::Statement SQLiteHandler::executeQuery(const std::string &query) const{
+    SQLite::Statement statement(db, query);
+    std::vector<std::map<std::string, auto>> values;
+
+    while (statement.executeStep()) {
+        std::map<std::string, auto> row;
+        for (int i = 0; i < statement.getColumnCount(); ++i) {
+            row[statement.getColumnName(i)] = statement.getColumn(i).getText();
+        }
+        values.push_back(row);
+    }
+    return values;
+}
+
 std::string SQLiteHandler::generateUniqueId(const std::string &table) const {
     while (true) {
         std::string randomId = generateId(32);

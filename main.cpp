@@ -11,6 +11,7 @@
 #include <SQLiteCpp/SQLiteCpp.h>
 #include <windows.h>
 #include "barkeep.h"
+#include "QueryHandler.h"
 #include "SQLiteHandler.h"
 #include "WeatherHandler.h"
 
@@ -135,7 +136,35 @@ void loadCommand(const std::vector<std::string>& options) {
 }
 
 void queryCommand(const std::vector<std::string>& options) {
+    bool bar = false;
+    std::string query;
+    std::string sortType;
+    for (size_t i = 0; i < options.size(); ++i) {
+        if (options[i] == "--bar") {
+            bar = true;
+        } else if (options[i] == "--query") {
+            if (i + 1 < options.size()) {
+                query = options[i + 1];
+                ++i;
+            } else {
+                std::cerr << "Error: --limit option requires a value." << std::endl;
+                return;
+            }
+        } else if (options[i] == "--sort") {
+            if (i + 1 < options.size()) {
+                sortType = options[i + 1];
+                ++i;
+            } else {
+                std::cerr << "Error: --batch-size option requires a value." << std::endl;
+                return;
+            }
+        } else {
+            std::cerr << "Warning: Unknown option '" << options[i] << "' ignored." << std::endl;
+        }
+    }
 
+    QueryHandler queryHandler(query, sortType, bar);
+    queryHandler.execute();
 }
 
 //weather query -t -s bubble/quick [spalte]  -q [SELECT * FROM measurements WHERE station ...]
