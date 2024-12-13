@@ -138,12 +138,26 @@ void queryCommand(const std::vector<std::string>& options) {
 
 }
 
+//weather query -t -s bubble/quick [spalte]  -q [SELECT * FROM measurements WHERE station ...]
+//status balken (total number of values, query, min, max sowie median, performance (time, memory, cpu)
+//tabelle an den daten
+
+//Zeile 1 Datensatz 1
+//Zeile 2 Datensatz 1
+//Zeile 3 ...
+//Zeile 4 Datensatz 500
+//Zeile 5 Datensatz 501
+//Zeile 6 ...
+//Zeile 7 Datensatz 17000
+
+
 int main(int argc, char *argv[]) {
     SetConsoleOutputCP(CP_UTF8);
 
     std::map<std::string, Command> commands = {
         {"load", {"Load data from directory", {}, {"-d (drop)", "-a (async)", "-c (clean)", "-b (batch)", "-g (garbage)" , "-p (path)", "-bs (batch-size)"}}},
-        {"query", {"Allows the user to query the weather data", {}, {}}},
+        {"query", {"Allows the user to query the weather data", {}, {
+        "-t (total)","-s (sort)", "-q (query)",}}},
         {"help", {"Displays the help information", {}, {}}}
     };
 
