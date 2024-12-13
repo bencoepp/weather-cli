@@ -17,18 +17,18 @@ void QueryHandler::execute() {
     generateStatusBar();
 }
 
-void QueryHandler::generateStatusBar() {
+void QueryHandler::generateStatusBar() const {
     if (this->statusBar) {
         std::cout << "\n============================================" << std::endl;
         std::cout << "| Status Bar" << std::endl;
         std::cout << "============================================" << std::endl;
-        std::cout << "| Total Values : " << values << std::endl;
+        std::cout << "| Total Values : " << values.size() << std::endl;
         std::cout << "| Query        : " << query << std::endl;
         std::cout << "| Min Value    : " << 0 << std::endl;
         std::cout << "| Max Value    : " << 100 << std::endl;
         std::cout << "| Median Value : " << 50 << std::endl;
         std::cout << "| Performance  : " << std::endl;
-        std::cout << "|   Time       : " << std::chrono::duration<double, std::milli>(startTimer - endTimer).count() << " ms" << std::endl;
+        std::cout << "|   Time       : " << std::chrono::duration<double, std::milli>(endTimer - startTimer).count() << " ms" << std::endl;
         std::cout << "|   Memory     : " << 100 << " KB" << std::endl;
         std::cout << "|   CPU Usage  : " << 2000 << " %" << std::endl;
         std::cout << "============================================" << std::endl;
@@ -37,6 +37,15 @@ void QueryHandler::generateStatusBar() {
 
 void QueryHandler::generateTable() {
     tabulate::Table table;
+
+    const int maxSize = values.size() > 50 ? 50 : values.size();
+
+    for (int i = 0; i < maxSize ; ++i) {
+         std::vector<std::string> row;
+        table.add_row(tabulate::RowStream{} << row);
+    }
+
+
     table.add_row(tabulate::Table::Row_t{"S/N", "Movie Name", "Director", "Estimated Budget", "Release Date"});
     table.add_row(tabulate::Table::Row_t{"tt1979376", "Toy Story 4", "Josh Cooley", "$200,000,000", "21 June 2019"});
     table.add_row(tabulate::Table::Row_t{"tt3263904", "Sully", "Clint Eastwood", "$60,000,000", "9 September 2016"});
@@ -59,5 +68,5 @@ void QueryHandler::queryData() {
         std::cerr << "Query is empty" << std::endl;
     }
 
-    this->values = db.executeQuery(this->query);
+    this->values = this->db.executeQuery(this->query);
 }

@@ -14,9 +14,9 @@ private:
     std::string query;
     std::string sortType;
     std::string sortParameter;
-    std::vector<std::map<std::string, auto>> values;
+    std::vector<std::map<std::string, std::string>> values;
     bool statusBar;
-    void generateStatusBar();
+    void generateStatusBar() const;
     void generateTable();
     void sortData();
     void queryData();

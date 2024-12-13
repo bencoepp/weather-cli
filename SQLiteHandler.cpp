@@ -275,12 +275,12 @@ SQLiteHandler::~SQLiteHandler() {
     db = nullptr;
 }
 
-SQLite::Statement SQLiteHandler::executeQuery(const std::string &query) const{
+std::vector<std::map<std::string, std::string>> SQLiteHandler::executeQuery(const std::string &query) {
     SQLite::Statement statement(db, query);
-    std::vector<std::map<std::string, auto>> values;
+    std::vector<std::map<std::string, std::string>> values;
 
     while (statement.executeStep()) {
-        std::map<std::string, auto> row;
+        std::map<std::string, std::string> row;
         for (int i = 0; i < statement.getColumnCount(); ++i) {
             row[statement.getColumnName(i)] = statement.getColumn(i).getText();
         }

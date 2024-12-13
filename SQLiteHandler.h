@@ -27,7 +27,7 @@ public:
     int countMeasurements() const;
     int countStations() const;
     ~SQLiteHandler();
-    std::vector<std::map<std::string, auto>> executeQuery(const std::string &query) const;
+    std::vector<std::map<std::string, std::string>> executeQuery(const std::string &query);
 
     std::string generateUniqueId(const std::string &table) const;
 
